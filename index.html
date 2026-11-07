@@ -189,6 +189,31 @@ tr:last-child td{border-bottom:none;}
 .donut-box canvas{display:block;}
 .donutwrap .pct{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:22px;font-weight:800;}
 .donutwrap .lbl{font-size:12px;color:var(--muted);margin-top:10px;}
+.donutwrap .btn-sm{margin-top:12px;width:100%;justify-content:center;}
+
+.legend-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.legend-chip{display:inline-flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:700;color:var(--text);}
+.legend-chip .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+.p3d-wrap{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px;flex:1;min-width:280px;}
+.p3d-head{font-size:11px;color:var(--muted2);margin-bottom:6px;font-weight:700;}
+.p3d-canvas{width:100%;height:300px;border-radius:8px;overflow:hidden;background:var(--card);cursor:grab;touch-action:none;}
+.p3d-canvas:active{cursor:grabbing;}
+.p3d-canvas canvas{display:block;}
+.p3d-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;flex-wrap:wrap;}
+.p3d-hint{font-size:11px;color:var(--muted2);}
+.btn-sm{padding:5px 11px;font-size:11.5px;}
+
+.detail-toggle{margin-top:14px;font-size:12.5px;font-weight:800;color:var(--navy);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;}
+html[data-theme="dark"] .detail-toggle{color:var(--gold2);}
+.detail-toggle .arrow{display:inline-block;transition:transform .15s;}
+.detail-toggle.open .arrow{transform:rotate(90deg);}
+.detail-list{margin-top:8px;max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;}
+.detail-list .dl-layer{padding:7px 12px;background:var(--bg);font-size:11px;font-weight:800;color:var(--muted2);border-bottom:1px solid var(--border);}
+.detail-list .dl-item{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:12px;border-bottom:1px solid var(--border);}
+.detail-list .dl-item:last-child{border-bottom:none;}
+.detail-list .dl-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.algo-line{margin-top:12px;font-size:11px;color:var(--muted2);text-align:right;}
 
 footer{text-align:center;color:var(--muted2);font-size:11.5px;padding:18px 0 26px;}
 
@@ -372,6 +397,8 @@ footer{text-align:center;color:var(--muted2);font-size:11.5px;padding:18px 0 26p
 <footer>© 2026 CG RateCheck Portal · Internal use only — dữ liệu minh họa, kết nối nguồn thật khi triển khai</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script>
 /* ---------------- STATE / PERSISTENCE ---------------- */
 const LS = {
@@ -718,6 +745,95 @@ function packAll(units, L, W, H){
 let uldCharts = [];
 function destroyCharts(){ uldCharts.forEach(c=>c.destroy()); uldCharts=[]; }
 
+let active3D = null;
+function dispose3D(){ if(active3D){ active3D.dispose(); active3D=null; } }
+
+/* ---- 3D pallet viewer (Three.js) — drag to rotate, scroll to zoom ---- */
+function mount3DViewer(containerEl, p, L, W, H){
+  containerEl.innerHTML = '';
+  const width = containerEl.clientWidth || 320, height = 300;
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(42, width/height, 1, 8000);
+  const cx=L/2, cy=H/2, cz=W/2;
+  camera.position.set(cx + L*0.95, cy + H*1.25, cz + W*1.55);
+
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  containerEl.appendChild(renderer.domElement);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(cx,cy,cz);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.minDistance = Math.max(L,W,H)*0.6; controls.maxDistance = Math.max(L,W,H)*6;
+  controls.update();
+
+  // pallet bounding wireframe
+  const palletEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(L,H,W));
+  const wire = new THREE.LineSegments(palletEdges, new THREE.LineBasicMaterial({color:0x16305A}));
+  wire.position.set(cx,cy,cz);
+  scene.add(wire);
+
+  // floor plate
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(L,W),
+    new THREE.MeshBasicMaterial({color:0x16305A, transparent:true, opacity:0.08, side:THREE.DoubleSide})
+  );
+  floor.rotation.x = -Math.PI/2; floor.position.set(cx,0.1,cz);
+  scene.add(floor);
+
+  // packed items
+  const allItems = [];
+  p.layers.forEach(layer=>{ layer.items.forEach(it=> allItems.push({...it, z0:layer.z})); });
+
+  const boxEntries = [];
+  allItems.forEach(it=>{
+    const geo = new THREE.BoxGeometry(Math.max(it.l-1.5,1), Math.max(it.h-1.5,1), Math.max(it.w-1.5,1));
+    const mat = new THREE.MeshLambertMaterial({color:new THREE.Color(it.color), transparent:true, opacity:0.92});
+    const mesh = new THREE.Mesh(geo, mat);
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({color:0x192033, transparent:true, opacity:0.3}));
+    mesh.add(edges);
+    const px = it.x + it.l/2, py = it.z0 + it.h/2, pz = it.y + it.w/2;
+    mesh.position.set(px, py, pz);
+    scene.add(mesh);
+    boxEntries.push({mesh, targetY:py});
+  });
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.55);
+  dl.position.set(L, H*2.5, W);
+  scene.add(dl);
+
+  let rafId;
+  (function animate(){ rafId = requestAnimationFrame(animate); controls.update(); renderer.render(scene,camera); })();
+
+  function playDrop(){
+    const dropFrom = H*2.2 + 80;
+    const dur = 600, stagger = Math.min(380, 1800/Math.max(boxEntries.length,1));
+    const start = performance.now();
+    boxEntries.forEach(b=> b.mesh.position.y = dropFrom);
+    (function step(now){
+      const t = now - start; let active=false;
+      boxEntries.forEach((b,idx)=>{
+        const localT = Math.min(Math.max((t - idx*stagger)/dur, 0), 1);
+        if(localT<1) active=true;
+        const eased = 1 - Math.pow(1-localT, 3);
+        b.mesh.position.y = dropFrom + (b.targetY - dropFrom)*eased;
+      });
+      if(active) requestAnimationFrame(step);
+    })(start);
+  }
+  playDrop();
+
+  function dispose(){
+    cancelAnimationFrame(rafId);
+    controls.dispose();
+    renderer.dispose();
+    containerEl.innerHTML = '';
+  }
+  return {dispose, playDrop};
+}
+
 document.getElementById('computeBtn').addEventListener('click', ()=>{
   const [L,W,H] = effectiveDims();
   let units = [];
@@ -731,11 +847,14 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
   }
   const area = document.getElementById('uldResultArea');
   if(!units.length){
+    dispose3D();
     area.innerHTML = '<div class="empty">⚠️<br>Vui lòng nhập ít nhất 1 dòng kiện hàng hợp lệ (Dài/Rộng/Cao/SL &gt; 0).</div>';
     return;
   }
+  const t0 = performance.now();
   const oversize = units.filter(u => (Math.min(u.l,u.w)>Math.max(L,W)) || u.h>H);
   const {pallets, unpacked} = packAll(units.filter(u=>!oversize.includes(u)), L, W, H);
+  const computeMs = (performance.now()-t0).toFixed(1);
   const totalUnpacked = unpacked.length + oversize.length;
   const totalPacked = units.length - totalUnpacked;
   const avgFill = pallets.length? Math.round(100*pallets.reduce((s,p)=>s+p.fill,0)/pallets.length) : 0;
@@ -747,35 +866,50 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
     <div class="stat"><b>${totalUnpacked}</b><small>CHƯA XẾP</small></div>
   </div>`;
 
+  dispose3D();
   if(!pallets.length){
     html += '<div class="empty">Không có kiện nào xếp được vừa trong mâm đã chọn.</div>';
     area.innerHTML = html;
     return;
   }
 
+  const legendHtml = '<div class="legend-row">' + uldState.rows.map((row,ri)=>{
+    const l=parseFloat(row.l), w=parseFloat(row.w), h=parseFloat(row.h), qty=parseInt(row.qty)||0;
+    if(!(l>0 && w>0 && h>0 && qty>0)) return '';
+    return `<span class="legend-chip"><span class="dot" style="background:${ROW_COLORS[ri%ROW_COLORS.length]}"></span>Dòng ${ri+1} ${l}×${w}×${h} ×${qty}</span>`;
+  }).join('') + '</div>';
+
+  html += legendHtml;
   html += '<div class="pallet-tabs" id="palletTabs">' + pallets.map((p,i)=>`<button class="ptab ${i===0?'sel':''}" data-i="${i}">Mâm ${i+1} · ${Math.round(p.fill*100)}%</button>`).join('') + '</div>';
   html += '<div id="palletDetail"></div>';
+  html += `<div class="algo-line">Thuật toán: shelf-pack theo lớp · ${computeMs} ms · mâm ${L}×${W}×${H} cm</div>`;
   area.innerHTML = html;
 
   function renderPallet(i){
-    destroyCharts();
+    destroyCharts(); dispose3D();
     const p = pallets[i];
-    const bottomLayer = p.layers[0];
-    const svgW=260, svgH= svgW * (W/L);
-    const scale = svgW/L;
-    const rects = bottomLayer.items.map(it=>`<rect x="${it.x*scale}" y="${it.y*scale}" width="${it.l*scale-2}" height="${it.w*scale-2}" fill="${it.color}" opacity="0.85" rx="3"></rect>`).join('');
+    const totalKien = p.layers.reduce((s,l)=>s+l.items.length,0);
     const detail = document.getElementById('palletDetail');
     detail.innerHTML = `<div class="pallet-view">
-      <div class="pallet-svg-wrap">
-        <div style="font-size:11px;color:var(--muted2);margin-bottom:6px;font-weight:700;">Mặt bằng lớp đáy (top-down view) · ${bottomLayer.items.length} kiện</div>
-        <svg width="${svgW}" height="${svgH}" style="background:var(--card);border:1px solid var(--border);border-radius:6px;">${rects}</svg>
-        <div style="font-size:11px;color:var(--muted2);margin-top:8px;">Số lớp xếp: <b style="color:var(--text)">${p.layers.length}</b> · Chiều cao đã dùng: <b style="color:var(--text)">${p.usedHeight.toFixed(0)}/${H} cm</b></div>
+      <div class="p3d-wrap">
+        <div class="p3d-head">Mô phỏng 3D · ${totalKien} kiện · ${p.layers.length} lớp</div>
+        <div class="p3d-canvas" id="p3d_${i}"></div>
+        <div class="p3d-foot">
+          <button class="btn btn-ghost btn-sm" id="replay3d_${i}">▶ Xem lại animation</button>
+          <span class="p3d-hint">Kéo để xoay · cuộn để phóng to</span>
+        </div>
       </div>
       <div class="donutwrap">
         <div class="donut-box"><canvas id="donut_${i}"></canvas></div>
-        <div class="lbl"><b style="color:var(--text)">Mâm ${i+1}</b><br>${bottomLayer.items.length + (p.layers[1]?p.layers.slice(1).reduce((s,l)=>s+l.items.length,0):0)} kiện · cao ${p.usedHeight.toFixed(0)}/${H} cm</div>
+        <div class="lbl"><b style="color:var(--text)">Mâm ${i+1}</b><br>${totalKien} kiện · cao ${p.usedHeight.toFixed(0)}/${H} cm</div>
       </div>
-    </div>`;
+    </div>
+    <div class="detail-toggle" id="detailToggle_${i}"><span class="arrow">▸</span> Chi tiết kiện theo mâm (${totalKien} kiện)</div>
+    <div class="detail-list" id="detailList_${i}" style="display:none;"></div>`;
+
+    active3D = mount3DViewer(document.getElementById('p3d_'+i), p, L, W, H);
+    document.getElementById('replay3d_'+i).addEventListener('click', ()=>{ if(active3D) active3D.playDrop(); });
+
     const ctx = document.getElementById('donut_'+i).getContext('2d');
     const pct = Math.round(p.fill*100);
     const chart = new Chart(ctx, {
@@ -784,11 +918,22 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
       options:{ responsive:true, maintainAspectRatio:false, cutout:'72%', plugins:{legend:{display:false}, tooltip:{enabled:false}} }
     });
     uldCharts.push(chart);
-    // center % label overlay (absolutely positioned inside the fixed-size .donut-box)
     const wrap = document.getElementById('donut_'+i).parentElement;
     let pctLabel = wrap.querySelector('.pct');
     if(!pctLabel){ pctLabel = document.createElement('div'); pctLabel.className='pct'; wrap.appendChild(pctLabel); }
     pctLabel.textContent = pct+'%';
+
+    const dlist = document.getElementById('detailList_'+i);
+    dlist.innerHTML = p.layers.map((layer,li)=>{
+      const rows = layer.items.map(it=>`<div class="dl-item"><span class="dot" style="background:${it.color}"></span>${it.l}×${it.w}×${it.h} cm · vị trí x=${Math.round(it.x)}, y=${Math.round(it.y)}</div>`).join('');
+      return `<div class="dl-layer">Lớp ${li+1} · z ${layer.z.toFixed(0)}–${(layer.z+layer.height).toFixed(0)} cm · ${layer.items.length} kiện</div>${rows}`;
+    }).join('');
+    const toggle = document.getElementById('detailToggle_'+i);
+    toggle.addEventListener('click', ()=>{
+      const open = dlist.style.display !== 'none';
+      dlist.style.display = open? 'none':'block';
+      toggle.classList.toggle('open', !open);
+    });
   }
   renderPallet(0);
   document.getElementById('palletTabs').addEventListener('click', e=>{
