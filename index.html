@@ -807,19 +807,25 @@ renderPalette();
 updateDimLine();
 
 /* ---- packing algorithm (shelf-based layered approximation) ---- */
-function shelfPackLayer(items, L, W){
+function shelfPackLayer(items, L, Wfull, widthLimitFn){
+  // widthLimitFn(item) optionally returns a per-item max usable width (<=Wfull) —
+  // used for contour/tapered ULDs (e.g. CV Q7) where a tall item poking above the
+  // shoulder height may only use the narrower top section, even if other items in
+  // the same layer are short enough to use the full width.
   const placed=[]; const leftover=[]; const shelves=[]; let cursorY=0;
   for(const it of items){
+    const wLimit = widthLimitFn ? widthLimitFn(it) : Wfull;
     const orientations = [[it.l,it.w],[it.w,it.l]];
     let done=false;
     for(const [ol,ow] of orientations){
+      if(ow>wLimit+0.001 || ol>L+0.001) continue;
       for(const sh of shelves){
-        if(ow<=sh.depth+0.001 && sh.xUsed+ol<=L+0.001){
+        if(ow<=sh.depth+0.001 && sh.xUsed+ol<=L+0.001 && sh.y+ow<=wLimit+0.001){
           placed.push({...it,x:sh.xUsed,y:sh.y,l:ol,w:ow}); sh.xUsed+=ol; done=true; break;
         }
       }
       if(done) break;
-      if(cursorY+ow<=W+0.001 && ol<=L+0.001){
+      if(cursorY+ow<=wLimit+0.001){
         shelves.push({y:cursorY, depth:ow, xUsed:ol});
         placed.push({...it,x:0,y:cursorY,l:ol,w:ow});
         cursorY+=ow; done=true; break;
@@ -837,11 +843,15 @@ function packPallet(units, L, W, H, contour){
     let candidates = remaining.filter(u=>u.h<=budget+0.001);
     if(!candidates.length) break;
     candidates = candidates.slice().sort((a,b)=>(b.l*b.w)-(a.l*a.w));
-    const Weff = (contour && usedHeight >= contour.shoulder-0.001) ? (W-contour.taper) : W;
-    const {placed} = shelfPackLayer(candidates, L, Weff);
+    // Per-item width limit: an item only needs the narrower top width if ITS OWN
+    // top surface (z0+h) rises above the shoulder — a short item placed in a layer
+    // that starts low can still use the full width even if a taller item sharing
+    // the same layer cannot.
+    const widthLimitFn = contour ? (it => (usedHeight + it.h > contour.shoulder + 0.001) ? (W - contour.taper) : W) : null;
+    const {placed} = shelfPackLayer(candidates, L, W, widthLimitFn);
     if(!placed.length) break;
     const layerHeight = Math.max(...placed.map(p=>p.h));
-    layers.push({z:usedHeight, height:layerHeight, items:placed, wEff:Weff});
+    layers.push({z:usedHeight, height:layerHeight, items:placed});
     usedHeight += layerHeight;
     const placedIds = new Set(placed.map(p=>p.uid));
     remaining = remaining.filter(u=>!placedIds.has(u.uid));
