@@ -167,7 +167,7 @@ tr:last-child td{border-bottom:none;}
 
 .uld-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 @media(max-width:860px){.uld-grid{grid-template-columns:1fr;}}
-.uld-row{display:grid;grid-template-columns:18px 1fr 1fr 1fr 60px 70px 32px;gap:6px;align-items:center;margin-bottom:7px;}
+.uld-row{display:grid;grid-template-columns:18px 1fr 1fr 1fr 62px 52px 70px 32px;gap:6px;align-items:center;margin-bottom:7px;}
 .uld-row input{width:100%;padding:7px 8px;font-size:12.5px;}
 .toggle{width:34px;height:19px;border-radius:999px;background:var(--border);position:relative;cursor:pointer;flex-shrink:0;}
 .toggle.on{background:var(--navy);}
@@ -242,6 +242,31 @@ footer{text-align:center;color:var(--muted2);font-size:11.5px;padding:18px 0 26p
 .cg-modal input{width:100%;margin-bottom:12px;}
 .cg-modal .row{display:flex;gap:8px;justify-content:flex-end;}
 
+.suggest-box{background:var(--yellow-bg);border-radius:9px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:var(--yellow-tx);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.suggest-box b{color:var(--yellow-tx);}
+.pallet-warn{background:var(--red-bg);color:var(--red-tx);border-radius:8px;padding:7px 11px;font-size:11.5px;font-weight:700;margin-top:10px;}
+.ptab.tab-warn{border-color:var(--red-tx);color:var(--red-tx);}
+.compare-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;}
+.compare-table th{background:var(--bg);font-size:10.5px;color:var(--muted2);}
+.compare-table td{cursor:pointer;}
+.compare-table tr:hover td{background:var(--bg);}
+.compare-table tr.best td{background:var(--green-bg);}
+.history-wrap{margin-top:14px;border-top:1px dashed var(--border);padding-top:12px;}
+.history-head{font-size:10.5px;font-weight:800;color:var(--muted2);letter-spacing:.06em;margin-bottom:6px;}
+.history-list{display:flex;flex-direction:column;gap:6px;max-height:190px;overflow-y:auto;}
+.history-item{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--bg);border:1px solid transparent;border-radius:8px;padding:7px 10px;font-size:11.5px;cursor:pointer;}
+.history-item:hover{border-color:var(--gold);}
+.history-item .hx-del{color:var(--red-tx);font-size:13px;cursor:pointer;padding:0 4px;flex-shrink:0;}
+.awb-row{display:flex;gap:8px;align-items:center;margin-top:12px;}
+.awb-row input{flex:1;}
+@media print{
+  .topbar,.quicklinks,.sidebar,.no-print,footer,.p3d-foot,.detail-toggle{display:none !important;}
+  .detail-list{display:block !important;max-height:none;overflow:visible;border:none;}
+  .card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
+  body{background:#fff;}
+  .layout{display:block;}
+  .content{padding:0;}
+}
 .track-result{margin-top:10px;}
 .steps{display:flex;flex-direction:column;gap:0;margin-top:6px;}
 .step{display:flex;gap:10px;padding:8px 0;}
@@ -377,12 +402,12 @@ footer{text-align:center;color:var(--muted2);font-size:11.5px;padding:18px 0 26p
       </div>
 
       <div class="uld-grid">
-        <div>
+        <div class="no-print">
           <div class="card">
             <div class="card-head">📦 Kiện hàng (tối đa 10 dòng, đơn vị cm)</div>
             <div class="card-body">
               <div class="uld-row" style="color:var(--muted2);font-size:10px;font-weight:800;">
-                <span></span><span>DÀI</span><span>RỘNG</span><span>CAO</span><span>SL</span><span>CHỒNG</span><span></span>
+                <span></span><span>DÀI</span><span>RỘNG</span><span>CAO</span><span>CÂN(KG)</span><span>SL</span><span>CHỒNG</span><span></span>
               </div>
               <div id="uldRows"></div>
               <button class="addrow" id="addRowBtn">+ Thêm dòng</button>
@@ -403,13 +428,26 @@ footer{text-align:center;color:var(--muted2);font-size:11.5px;padding:18px 0 26p
               </div>
               <div class="contour-note" id="contourNote" style="display:none;"></div>
               <div class="dimline"><span>Kích thước hiệu dụng:</span><br><span id="dimLineText" style="color:var(--text);"></span></div>
+              <div class="field" style="margin-top:10px;">
+                <label>TẢI TRỌNG TỐI ĐA MÂM (KG) <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted2);">— tham khảo ULD rating, xác nhận lại với hãng bay</span></label>
+                <input type="number" id="maxWeightInput" min="0" style="width:160px;">
+              </div>
               <button class="btn btn-primary" id="computeBtn" style="width:100%;justify-content:center;margin-top:14px;">⚙ Tính toán sắp xếp</button>
+              <button class="btn btn-ghost" id="compareBtn" style="width:100%;justify-content:center;margin-top:8px;">🔍 So sánh tất cả loại mâm</button>
+              <div class="awb-row">
+                <input type="text" id="uldAwbInput" placeholder="Số AWB (để lưu lịch sử, tuỳ chọn)">
+                <button class="btn btn-ghost btn-sm" id="saveHistoryBtn">💾 Lưu</button>
+              </div>
+              <div class="history-wrap">
+                <div class="history-head">LỊCH SỬ GẦN ĐÂY</div>
+                <div class="history-list" id="historyList"></div>
+              </div>
             </div>
           </div>
         </div>
 
         <div class="card" style="align-self:flex-start;">
-          <div class="card-head">👁 Kết quả</div>
+          <div class="card-head">👁 Kết quả <button class="btn btn-ghost btn-sm no-print" id="printUldBtn">🖨 In / Xuất PDF</button></div>
           <div class="card-body" id="uldResultArea">
             <div class="empty">📭<br>Nhập kiện hàng và nhấn <b>"Tính toán sắp xếp"</b> để xem phương án xếp mâm.</div>
           </div>
@@ -703,23 +741,23 @@ const LINES = {
     label:'Singapore Airlines · Lower Deck',
     hasSpreader:true,
     pallets:{
-      PMC:{label:'PMC', dims:[302,229,158], note:'Lower Deck · tiêu chuẩn', verified:'ok'},
-      PAG:{label:'PAG', dims:[302,208,158], note:'Lower Deck · tiêu chuẩn', verified:'ok'},
+      PMC:{label:'PMC', dims:[302,229,158], maxWeight:6804, note:'Lower Deck · tiêu chuẩn', verified:'ok'},
+      PAG:{label:'PAG', dims:[302,208,158], maxWeight:4626, note:'Lower Deck · tiêu chuẩn', verified:'ok'},
     }
   },
   CV: {
     label:'Cargolux · Main Deck',
     hasSpreader:false,
     pallets:{
-      Q7:{label:'Q7', dims:[300,230,300], shoulder:240, taper:60, note:'Main Deck · theo tài liệu CV Bách cung cấp', verified:'ok'},
-      Q6:{label:'Q6', dims:[300,230,244], shoulder:null, taper:0, note:'Main Deck · tham khảo nguồn ULD công khai, CHƯA xác nhận riêng với CV', verified:'unk'},
+      Q7:{label:'Q7', dims:[300,230,300], shoulder:240, taper:60, maxWeight:6804, note:'Main Deck · theo tài liệu CV Bách cung cấp', verified:'ok'},
+      Q6:{label:'Q6', dims:[300,230,244], shoulder:null, taper:0, maxWeight:6804, note:'Main Deck · tham khảo nguồn ULD công khai, CHƯA xác nhận riêng với CV', verified:'unk'},
     }
   }
 };
-let uldState = { line:'SQ', pallet:'PMC', spreader:false, rows:[] };
+let uldState = { line:'SQ', pallet:'PMC', spreader:false, rows:[], maxWeightOverride:null };
 
 function newRow(){
-  return { l:'', w:'', h:'', qty:1, stack:true };
+  return { l:'', w:'', h:'', wt:'', qty:1, stack:true };
 }
 for(let i=0;i<3;i++) uldState.rows.push(newRow());
 
@@ -734,6 +772,7 @@ function renderRows(){
       <input type="number" min="1" placeholder="Dài" value="${row.l}" data-f="l">
       <input type="number" min="1" placeholder="Rộng" value="${row.w}" data-f="w">
       <input type="number" min="1" placeholder="Cao" value="${row.h}" data-f="h">
+      <input type="number" min="0" step="0.1" placeholder="Cân" value="${row.wt}" data-f="wt">
       <input type="number" min="1" value="${row.qty}" data-f="qty">
       <div class="toggle ${row.stack?'on':''}" data-f="stack"><i></i></div>
       <button data-f="del" title="Xoá dòng" style="border:none;background:transparent;color:var(--red-tx);cursor:pointer;font-size:15px;">✕</button>
@@ -769,7 +808,7 @@ function renderPalette(){
   wrap.querySelectorAll('.pal-opt').forEach(opt=>{
     opt.addEventListener('click', ()=>{
       wrap.querySelectorAll('.pal-opt').forEach(o=>o.classList.remove('sel'));
-      opt.classList.add('sel'); uldState.pallet = opt.dataset.pallet; updateDimLine();
+      opt.classList.add('sel'); uldState.pallet = opt.dataset.pallet; uldState.maxWeightOverride = null; updateDimLine(); syncMaxWeightUI();
     });
   });
   document.getElementById('spreaderRow').style.display = line.hasSpreader? 'flex':'none';
@@ -780,18 +819,34 @@ document.getElementById('lineTabs').addEventListener('click', e=>{
   b.classList.add('sel');
   uldState.line = b.dataset.line;
   if(uldState.line!=='SQ') uldState.spreader = false;
-  renderPalette(); updateDimLine();
+  uldState.maxWeightOverride = null;
+  renderPalette(); updateDimLine(); syncMaxWeightUI();
 });
 document.getElementById('spreaderToggle').addEventListener('click', (ev)=>{
   uldState.spreader = !uldState.spreader; ev.currentTarget.classList.toggle('on', uldState.spreader); updateDimLine();
 });
-function effectiveDims(){
-  const meta = currentPalletMeta();
+function effectiveDimsFor(key){
+  const meta = LINES[uldState.line].pallets[key];
   let [L,W,H] = meta.dims;
   if(uldState.line==='SQ' && uldState.spreader){ L+=20; W+=15; H-=15; }
   const contour = meta.shoulder? {shoulder:meta.shoulder, taper:meta.taper} : null;
   return {L,W,H,contour,meta};
 }
+function effectiveDims(){ return effectiveDimsFor(uldState.pallet); }
+function currentMaxWeight(){
+  if(uldState.maxWeightOverride!=null && !isNaN(uldState.maxWeightOverride)) return uldState.maxWeightOverride;
+  const meta = currentPalletMeta();
+  return meta.maxWeight || null;
+}
+function syncMaxWeightUI(){
+  const meta = currentPalletMeta();
+  const inp = document.getElementById('maxWeightInput');
+  inp.value = currentMaxWeight() ?? (meta.maxWeight||'');
+}
+document.getElementById('maxWeightInput').addEventListener('input', e=>{
+  const v = parseFloat(e.target.value);
+  uldState.maxWeightOverride = isNaN(v)? null : v;
+});
 function updateDimLine(){
   const {L,W,H,contour,meta} = effectiveDims();
   document.getElementById('dimLineText').innerHTML = `${L} × ${W} × ${H} cm <span>${meta.label} · ${(uldState.line==='SQ' && uldState.spreader)?'có spreader':'tiêu chuẩn'}</span>`;
@@ -805,6 +860,7 @@ function updateDimLine(){
 }
 renderPalette();
 updateDimLine();
+syncMaxWeightUI();
 
 /* ---- packing algorithm (shelf-based layered approximation) ---- */
 function shelfPackLayer(items, L, Wfull, widthLimitFn){
@@ -904,7 +960,7 @@ function mount3DViewer(containerEl, p, L, W, H, contour){
   const cx=L/2, cy=H/2, cz=W/2;
   camera.position.set(cx + L*0.95, cy + H*1.25, cz + W*1.55);
 
-  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
   renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
   containerEl.appendChild(renderer.domElement);
@@ -983,20 +1039,26 @@ function mount3DViewer(containerEl, p, L, W, H, contour){
     renderer.dispose();
     containerEl.innerHTML = '';
   }
-  return {dispose, playDrop};
+  return {dispose, playDrop, renderer};
 }
 
-document.getElementById('computeBtn').addEventListener('click', ()=>{
-  const {L,W,H,contour,meta} = effectiveDims();
+function buildUnitsFromRows(){
   let units = [];
   let rowIdx=0;
   for(const row of uldState.rows){
     const l=parseFloat(row.l), w=parseFloat(row.w), h=parseFloat(row.h), qty=parseInt(row.qty)||0;
+    const wt=parseFloat(row.wt)||0;
     if(l>0 && w>0 && h>0 && qty>0){
-      for(let k=0;k<qty;k++) units.push({l,w,h,stack:row.stack, color:ROW_COLORS[rowIdx%ROW_COLORS.length]});
+      for(let k=0;k<qty;k++) units.push({l,w,h,wt,stack:row.stack, color:ROW_COLORS[rowIdx%ROW_COLORS.length]});
     }
     rowIdx++;
   }
+  return units;
+}
+
+function runUldCompute(){
+  const {L,W,H,contour,meta} = effectiveDims();
+  const units = buildUnitsFromRows();
   const area = document.getElementById('uldResultArea');
   if(!units.length){
     dispose3D();
@@ -1010,6 +1072,12 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
   const totalUnpacked = unpacked.length + oversize.length;
   const totalPacked = units.length - totalUnpacked;
   const avgFill = pallets.length? Math.round(100*pallets.reduce((s,p)=>s+p.fill,0)/pallets.length) : 0;
+  const maxW = currentMaxWeight();
+  pallets.forEach(p=>{
+    p.weight = p.layers.reduce((s,ly)=>s+ly.items.reduce((s2,it)=>s2+(it.wt||0),0),0);
+    p.overweight = maxW? (p.weight>maxW) : false;
+  });
+  const overweightCount = pallets.filter(p=>p.overweight).length;
 
   let html = `<div class="stats">
     <div class="stat"><b>${pallets.length}</b><small>MÂM CẦN DÙNG</small></div>
@@ -1025,6 +1093,15 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
     return;
   }
 
+  const altKeys = Object.keys(LINES[uldState.line].pallets).filter(k=>k!==uldState.pallet);
+  if(totalUnpacked>0 && altKeys.length){
+    html += `<div class="suggest-box"><div>⚠ Còn <b>${totalUnpacked}</b> kiện chưa xếp được với mâm ${meta.label}${contour?' (có thể do vượt giới hạn vát)':''}. Thử loại mâm khác cùng dòng khai thác?</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">${altKeys.map(k=>`<button class="btn btn-ghost btn-sm" data-try-pallet="${k}">Thử mâm ${LINES[uldState.line].pallets[k].label}</button>`).join('')}</div></div>`;
+  }
+  if(overweightCount>0){
+    html += `<div class="suggest-box" style="background:var(--red-bg);color:var(--red-tx);"><div>⚠ <b>${overweightCount}</b> mâm vượt tải trọng tối đa tham khảo (${maxW.toLocaleString('en-US')} kg) — kiểm tra lại cột CÂN(KG) đã nhập và xác nhận với hãng bay trước khi xếp thật.</div></div>`;
+  }
+
   const legendHtml = '<div class="legend-row">' + uldState.rows.map((row,ri)=>{
     const l=parseFloat(row.l), w=parseFloat(row.w), h=parseFloat(row.h), qty=parseInt(row.qty)||0;
     if(!(l>0 && w>0 && h>0 && qty>0)) return '';
@@ -1032,35 +1109,51 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
   }).join('') + '</div>';
 
   html += legendHtml;
-  html += '<div class="pallet-tabs" id="palletTabs">' + pallets.map((p,i)=>`<button class="ptab ${i===0?'sel':''}" data-i="${i}">Mâm ${i+1} · ${Math.round(p.fill*100)}%</button>`).join('') + '</div>';
+  html += '<div class="pallet-tabs" id="palletTabs">' + pallets.map((p,i)=>`<button class="ptab ${i===0?'sel':''} ${p.overweight?'tab-warn':''}" data-i="${i}">Mâm ${i+1} · ${Math.round(p.fill*100)}%${p.overweight?' ⚠':''}</button>`).join('') + '</div>';
   html += '<div id="palletDetail"></div>';
   html += `<div class="algo-line">Thuật toán: shelf-pack theo lớp${contour?' (có vát)':''} · ${computeMs} ms · mâm ${meta.label} ${L}×${W}×${H} cm</div>`;
   area.innerHTML = html;
+
+  area.querySelectorAll('[data-try-pallet]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      uldState.pallet = btn.dataset.tryPallet; uldState.maxWeightOverride = null;
+      renderPalette(); updateDimLine(); syncMaxWeightUI();
+      runUldCompute();
+    });
+  });
 
   function renderPallet(i){
     destroyCharts(); dispose3D();
     const p = pallets[i];
     const totalKien = p.layers.reduce((s,l)=>s+l.items.length,0);
     const detail = document.getElementById('palletDetail');
+    const weightLine = p.weight>0 ? ` · ${p.weight.toFixed(0)}${maxW? '/'+maxW:''} kg` : '';
     detail.innerHTML = `<div class="pallet-view">
       <div class="p3d-wrap">
         <div class="p3d-head">Mô phỏng 3D · ${totalKien} kiện · ${p.layers.length} lớp</div>
         <div class="p3d-canvas" id="p3d_${i}"></div>
         <div class="p3d-foot">
           <button class="btn btn-ghost btn-sm" id="replay3d_${i}">▶ Xem lại animation</button>
+          <button class="btn btn-ghost btn-sm no-print" id="save3d_${i}">📷 Lưu ảnh</button>
           <span class="p3d-hint">Kéo để xoay · cuộn để phóng to</span>
         </div>
       </div>
       <div class="donutwrap">
         <div class="donut-box"><canvas id="donut_${i}"></canvas></div>
-        <div class="lbl"><b style="color:var(--text)">Mâm ${i+1}</b><br>${totalKien} kiện · cao ${p.usedHeight.toFixed(0)}/${H} cm</div>
+        <div class="lbl"><b style="color:var(--text)">Mâm ${i+1}</b><br>${totalKien} kiện · cao ${p.usedHeight.toFixed(0)}/${H} cm${weightLine}</div>
       </div>
     </div>
+    ${p.overweight? `<div class="pallet-warn">⚠ Tổng cân nặng mâm ${i+1}: ${p.weight.toFixed(0)} kg — vượt tải trọng tối đa tham khảo ${maxW.toLocaleString('en-US')} kg. Xác nhận lại với bộ phận khai thác/hãng bay trước khi xếp thật.</div>` : ''}
     <div class="detail-toggle" id="detailToggle_${i}"><span class="arrow">▸</span> Chi tiết kiện theo mâm (${totalKien} kiện)</div>
     <div class="detail-list" id="detailList_${i}" style="display:none;"></div>`;
 
     active3D = mount3DViewer(document.getElementById('p3d_'+i), p, L, W, H, contour);
     document.getElementById('replay3d_'+i).addEventListener('click', ()=>{ if(active3D) active3D.playDrop(); });
+    document.getElementById('save3d_'+i).addEventListener('click', ()=>{
+      if(!active3D || !active3D.renderer) return;
+      const url = active3D.renderer.domElement.toDataURL('image/png');
+      const a = document.createElement('a'); a.href = url; a.download = `mam${i+1}_${meta.label}.png`; a.click();
+    });
 
     const ctx = document.getElementById('donut_'+i).getContext('2d');
     const pct = Math.round(p.fill*100);
@@ -1077,7 +1170,7 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
 
     const dlist = document.getElementById('detailList_'+i);
     dlist.innerHTML = p.layers.map((layer,li)=>{
-      const rows = layer.items.map(it=>`<div class="dl-item"><span class="dot" style="background:${it.color}"></span>${it.l}×${it.w}×${it.h} cm · vị trí x=${Math.round(it.x)}, y=${Math.round(it.y)}</div>`).join('');
+      const rows = layer.items.map(it=>`<div class="dl-item"><span class="dot" style="background:${it.color}"></span>${it.l}×${it.w}×${it.h} cm${it.wt? ' · '+it.wt+'kg':''} · vị trí x=${Math.round(it.x)}, y=${Math.round(it.y)}</div>`).join('');
       return `<div class="dl-layer">Lớp ${li+1} · z ${layer.z.toFixed(0)}–${(layer.z+layer.height).toFixed(0)} cm · ${layer.items.length} kiện</div>${rows}`;
     }).join('');
     const toggle = document.getElementById('detailToggle_'+i);
@@ -1093,7 +1186,84 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
     document.querySelectorAll('.ptab').forEach(x=>x.classList.remove('sel')); b.classList.add('sel');
     renderPallet(parseInt(b.dataset.i));
   });
+}
+document.getElementById('computeBtn').addEventListener('click', runUldCompute);
+
+document.getElementById('printUldBtn').addEventListener('click', ()=>{ window.print(); });
+
+document.getElementById('compareBtn').addEventListener('click', ()=>{
+  const units = buildUnitsFromRows();
+  const area = document.getElementById('uldResultArea');
+  if(!units.length){ area.innerHTML = '<div class="empty">⚠️<br>Vui lòng nhập ít nhất 1 dòng kiện hàng hợp lệ trước khi so sánh.</div>'; return; }
+  dispose3D(); destroyCharts();
+  const keys = Object.keys(LINES[uldState.line].pallets);
+  const rows = keys.map(k=>{
+    const {L,W,H,contour,meta} = effectiveDimsFor(k);
+    const oversize = units.filter(u => (Math.min(u.l,u.w)>Math.max(L,W)) || u.h>H);
+    const {pallets, unpacked} = packAll(units.filter(u=>!oversize.includes(u)), L, W, H, contour);
+    const totalUnpacked = unpacked.length + oversize.length;
+    const avgFill = pallets.length? Math.round(100*pallets.reduce((s,p)=>s+p.fill,0)/pallets.length) : 0;
+    return {key:k, label:meta.label, dims:`${L}×${W}×${H}`, palletCount:pallets.length, avgFill, unpacked:totalUnpacked};
+  });
+  rows.sort((a,b)=> a.palletCount-b.palletCount || a.unpacked-b.unpacked || b.avgFill-a.avgFill);
+  let html = `<div style="font-weight:800;font-size:13.5px;margin-bottom:10px;">🔍 So sánh loại mâm — dòng ${LINES[uldState.line].label}</div>
+  <table class="compare-table"><thead><tr><th>MÂM</th><th>KÍCH THƯỚC HIỆU DỤNG</th><th>SỐ MÂM CẦN</th><th>LẤP ĐẦY TB</th><th>CHƯA XẾP</th></tr></thead><tbody>
+  ${rows.map((r,i)=>`<tr class="${i===0?'best':''}" data-apply-pallet="${r.key}"><td><b>${r.label}</b>${i===0?' 🏆':''}</td><td class="mono">${r.dims} cm</td><td class="mono">${r.palletCount}</td><td class="mono">${r.avgFill}%</td><td class="mono">${r.unpacked}</td></tr>`).join('')}
+  </tbody></table>
+  <div style="font-size:11px;color:var(--muted2);margin-top:8px;">Bấm vào 1 dòng để áp dụng loại mâm đó rồi tính lại. 🏆 = ít mâm nhất / lấp đầy tốt nhất trong các kiện xếp được.</div>`;
+  area.innerHTML = html;
+  area.querySelectorAll('[data-apply-pallet]').forEach(tr=>{
+    tr.addEventListener('click', ()=>{
+      uldState.pallet = tr.dataset.applyPallet; uldState.maxWeightOverride = null;
+      renderPalette(); updateDimLine(); syncMaxWeightUI();
+      runUldCompute();
+    });
+  });
 });
+
+/* ---- lưu / tải lịch sử tính toán ULD theo AWB (localStorage) ---- */
+function loadUldHistory(){ return LS.get('cg_uld_history', []); }
+function saveUldHistory(list){ LS.set('cg_uld_history', list); }
+function renderUldHistory(){
+  const list = loadUldHistory();
+  const wrap = document.getElementById('historyList');
+  if(!list.length){ wrap.innerHTML = '<div style="font-size:11.5px;color:var(--muted2);">Chưa có lịch sử.</div>'; return; }
+  wrap.innerHTML = list.map((h,i)=>{
+    const lineDef = LINES[h.line];
+    const palLabel = lineDef && lineDef.pallets[h.pallet] ? lineDef.pallets[h.pallet].label : h.pallet;
+    const rowCount = h.rows.filter(r=>r.l&&r.w&&r.h).length;
+    return `<div class="history-item" data-idx="${i}"><span>${h.awb? '<b>'+h.awb+'</b>':'(không AWB)'} — ${h.line}/${palLabel} · ${rowCount} dòng kiện</span><span class="hx-del" data-del="${i}">✕</span></div>`;
+  }).join('');
+  wrap.querySelectorAll('.history-item').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const idx = parseInt(el.dataset.idx);
+      const h = loadUldHistory()[idx];
+      if(!h) return;
+      uldState.line = h.line; uldState.pallet = h.pallet; uldState.spreader = h.spreader; uldState.maxWeightOverride = h.maxWeightOverride ?? null;
+      uldState.rows = h.rows.map(r=>({...r}));
+      document.querySelectorAll('.line-opt').forEach(o=>o.classList.toggle('sel', o.dataset.line===h.line));
+      document.getElementById('spreaderToggle').classList.toggle('on', !!uldState.spreader);
+      renderRows(); renderPalette(); updateDimLine(); syncMaxWeightUI();
+      document.getElementById('uldAwbInput').value = h.awb||'';
+    });
+  });
+  wrap.querySelectorAll('.hx-del').forEach(el=>{
+    el.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const idx = parseInt(ev.currentTarget.dataset.del);
+      const list2 = loadUldHistory(); list2.splice(idx,1); saveUldHistory(list2); renderUldHistory();
+    });
+  });
+}
+document.getElementById('saveHistoryBtn').addEventListener('click', ()=>{
+  const awb = document.getElementById('uldAwbInput').value.trim();
+  const list = loadUldHistory();
+  list.unshift({ awb, line:uldState.line, pallet:uldState.pallet, spreader:uldState.spreader, maxWeightOverride:uldState.maxWeightOverride, rows: uldState.rows.map(r=>({...r})), savedAt:Date.now() });
+  while(list.length>8) list.pop();
+  saveUldHistory(list);
+  renderUldHistory();
+});
+renderUldHistory();
 </script>
 </body>
 </html>
