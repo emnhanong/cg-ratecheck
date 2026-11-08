@@ -174,11 +174,20 @@ tr:last-child td{border-bottom:none;}
 .toggle i{position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#fff;transition:.15s;}
 .toggle.on i{left:17px;}
 .addrow{width:100%;border:1px dashed var(--border);background:transparent;border-radius:9px;padding:9px;color:var(--muted);font-weight:700;cursor:pointer;margin-top:4px;}
-.palette{display:flex;gap:10px;}
-.pal-opt{flex:1;border:2px solid var(--border);border-radius:10px;padding:10px;text-align:center;cursor:pointer;}
+.line-tabs{display:flex;gap:10px;margin-bottom:12px;}
+.line-opt{flex:1;border:2px solid var(--border);border-radius:10px;padding:9px 10px;text-align:center;cursor:pointer;background:var(--card);font-family:inherit;}
+.line-opt.sel{border-color:var(--navy);background:var(--bg);}
+.line-opt b{display:block;font-size:14px;color:var(--text);}
+.line-opt span{font-size:10.5px;color:var(--muted2);}
+.palette{display:flex;gap:10px;margin-bottom:0;}
+.pal-opt{flex:1;border:2px solid var(--border);border-radius:10px;padding:10px;text-align:center;cursor:pointer;position:relative;}
 .pal-opt.sel{border-color:var(--navy);background:var(--bg);}
 .pal-opt b{display:block;font-size:14px;}
-.pal-opt span{font-size:11px;color:var(--muted2);}
+.pal-opt span{font-size:11px;color:var(--muted2);display:block;}
+.pal-opt .verify-tag{display:inline-block;margin-top:5px;font-size:9px;font-weight:800;padding:1px 7px;border-radius:999px;}
+.pal-opt .verify-tag.ok{background:var(--green-bg);color:var(--green-tx);}
+.pal-opt .verify-tag.unk{background:var(--yellow-bg);color:var(--yellow-tx);}
+.contour-note{background:var(--yellow-bg);color:var(--yellow-tx);border-radius:9px;padding:9px 11px;font-size:11.5px;font-weight:600;margin-top:10px;line-height:1.5;}
 .sw-row{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-radius:9px;padding:10px 12px;margin-top:10px;}
 .sw-row small{display:block;color:var(--muted2);font-size:10.5px;}
 .dimline{margin-top:10px;background:var(--bg);border-radius:9px;padding:10px 12px;font-weight:800;font-size:15px;}
@@ -363,8 +372,8 @@ footer{text-align:center;color:var(--muted2);font-size:11.5px;padding:18px 0 26p
     <div class="view" id="view-uld">
       <div class="hero">
         <span class="tag">RATECHECK · CARGO LOAD PLANNING</span>
-        <h1>ULD Planner — mô phỏng xếp mâm PMC / PAG</h1>
-        <p>Nhập kích thước kiện hàng, chọn loại mâm và tính toán phương án xếp tối ưu thể tích — trực quan hoá theo từng lớp.</p>
+        <h1>ULD Planner — mô phỏng xếp mâm theo dòng khai thác</h1>
+        <p>Chọn dòng khai thác (SQ lower deck / CV main deck), nhập kích thước kiện hàng và tính toán phương án xếp tối ưu thể tích — trực quan hoá theo từng lớp.</p>
       </div>
 
       <div class="uld-grid">
@@ -381,16 +390,18 @@ footer{text-align:center;color:var(--muted2);font-size:11.5px;padding:18px 0 26p
           </div>
 
           <div class="card">
-            <div class="card-head">🗂 Loại mâm &amp; tùy chọn</div>
+            <div class="card-head">🗂 Dòng khai thác &amp; loại mâm</div>
             <div class="card-body">
-              <div class="palette">
-                <div class="pal-opt sel" data-pallet="PMC"><b>PMC</b><span>302×229×158</span></div>
-                <div class="pal-opt" data-pallet="PAG"><b>PAG</b><span>302×208×158</span></div>
+              <div class="line-tabs" id="lineTabs">
+                <button class="line-opt sel" data-line="SQ"><b>SQ</b><span>Singapore Airlines · Lower Deck</span></button>
+                <button class="line-opt" data-line="CV"><b>CV</b><span>Cargolux · Main Deck</span></button>
               </div>
-              <div class="sw-row">
+              <div class="palette" id="palletPalette"></div>
+              <div class="sw-row" id="spreaderRow">
                 <div><b>Sử dụng Wooden spreader</b><small>+20 dài · +15 rộng · −15 cao (contour pallet)</small></div>
                 <div class="toggle" id="spreaderToggle"><i></i></div>
               </div>
+              <div class="contour-note" id="contourNote" style="display:none;"></div>
               <div class="dimline"><span>Kích thước hiệu dụng:</span><br><span id="dimLineText" style="color:var(--text);"></span></div>
               <button class="btn btn-primary" id="computeBtn" style="width:100%;justify-content:center;margin-top:14px;">⚙ Tính toán sắp xếp</button>
             </div>
@@ -687,8 +698,25 @@ document.addEventListener('keydown', e=>{
 
 /* ---------------- ULD PLANNER ---------------- */
 const ROW_COLORS = ['#2F6FE4','#E0922B','#2FA86B','#C0271E','#8B5CF6','#0EA5B7','#D9A62B','#DB2777','#64748B','#16A34A'];
-let uldState = { pallet:'PMC', spreader:false, rows:[] };
-const PALLET_DIMS = { PMC:[302,229,158], PAG:[302,208,158] };
+const LINES = {
+  SQ: {
+    label:'Singapore Airlines · Lower Deck',
+    hasSpreader:true,
+    pallets:{
+      PMC:{label:'PMC', dims:[302,229,158], note:'Lower Deck · tiêu chuẩn', verified:'ok'},
+      PAG:{label:'PAG', dims:[302,208,158], note:'Lower Deck · tiêu chuẩn', verified:'ok'},
+    }
+  },
+  CV: {
+    label:'Cargolux · Main Deck',
+    hasSpreader:false,
+    pallets:{
+      Q7:{label:'Q7', dims:[300,230,300], shoulder:240, taper:60, note:'Main Deck · theo tài liệu CV Bách cung cấp', verified:'ok'},
+      Q6:{label:'Q6', dims:[300,230,244], shoulder:null, taper:0, note:'Main Deck · tham khảo nguồn ULD công khai, CHƯA xác nhận riêng với CV', verified:'unk'},
+    }
+  }
+};
+let uldState = { line:'SQ', pallet:'PMC', spreader:false, rows:[] };
 
 function newRow(){
   return { l:'', w:'', h:'', qty:1, stack:true };
@@ -724,24 +752,58 @@ document.getElementById('addRowBtn').addEventListener('click', ()=>{
   if(uldState.rows.length>=10){ alert('Tối đa 10 dòng.'); return; }
   uldState.rows.push(newRow()); renderRows();
 });
-document.querySelectorAll('.pal-opt').forEach(opt=>{
-  opt.addEventListener('click', ()=>{
-    document.querySelectorAll('.pal-opt').forEach(o=>o.classList.remove('sel'));
-    opt.classList.add('sel'); uldState.pallet = opt.dataset.pallet; updateDimLine();
+function currentPalletMeta(){ return LINES[uldState.line].pallets[uldState.pallet]; }
+
+function renderPalette(){
+  const line = LINES[uldState.line];
+  const keys = Object.keys(line.pallets);
+  if(!keys.includes(uldState.pallet)) uldState.pallet = keys[0];
+  const wrap = document.getElementById('palletPalette');
+  wrap.innerHTML = keys.map(k=>{
+    const p = line.pallets[k];
+    const tag = p.verified==='ok'
+      ? '<span class="verify-tag ok">✓ đã xác nhận</span>'
+      : '<span class="verify-tag unk">tham khảo, chưa xác nhận</span>';
+    return `<div class="pal-opt ${k===uldState.pallet?'sel':''}" data-pallet="${k}"><b>${p.label}</b><span>${p.dims.join('×')}</span>${tag}</div>`;
+  }).join('');
+  wrap.querySelectorAll('.pal-opt').forEach(opt=>{
+    opt.addEventListener('click', ()=>{
+      wrap.querySelectorAll('.pal-opt').forEach(o=>o.classList.remove('sel'));
+      opt.classList.add('sel'); uldState.pallet = opt.dataset.pallet; updateDimLine();
+    });
   });
+  document.getElementById('spreaderRow').style.display = line.hasSpreader? 'flex':'none';
+}
+document.getElementById('lineTabs').addEventListener('click', e=>{
+  const b = e.target.closest('.line-opt'); if(!b) return;
+  document.querySelectorAll('.line-opt').forEach(o=>o.classList.remove('sel'));
+  b.classList.add('sel');
+  uldState.line = b.dataset.line;
+  if(uldState.line!=='SQ') uldState.spreader = false;
+  renderPalette(); updateDimLine();
 });
 document.getElementById('spreaderToggle').addEventListener('click', (ev)=>{
   uldState.spreader = !uldState.spreader; ev.currentTarget.classList.toggle('on', uldState.spreader); updateDimLine();
 });
 function effectiveDims(){
-  let [L,W,H] = PALLET_DIMS[uldState.pallet];
-  if(uldState.spreader){ L+=20; W+=15; H-=15; }
-  return [L,W,H];
+  const meta = currentPalletMeta();
+  let [L,W,H] = meta.dims;
+  if(uldState.line==='SQ' && uldState.spreader){ L+=20; W+=15; H-=15; }
+  const contour = meta.shoulder? {shoulder:meta.shoulder, taper:meta.taper} : null;
+  return {L,W,H,contour,meta};
 }
 function updateDimLine(){
-  const [L,W,H] = effectiveDims();
-  document.getElementById('dimLineText').innerHTML = `${L} × ${W} × ${H} cm <span>${uldState.pallet} · ${uldState.spreader?'có spreader':'tiêu chuẩn'}</span>`;
+  const {L,W,H,contour,meta} = effectiveDims();
+  document.getElementById('dimLineText').innerHTML = `${L} × ${W} × ${H} cm <span>${meta.label} · ${(uldState.line==='SQ' && uldState.spreader)?'có spreader':'tiêu chuẩn'}</span>`;
+  const note = document.getElementById('contourNote');
+  if(contour){
+    note.style.display = 'block';
+    note.innerHTML = `⚠ Mâm ${meta.label} có vát 1 bên: từ độ cao <b>${contour.shoulder}cm</b> trở lên, bề rộng khả dụng giảm còn <b>${W-contour.taper}cm</b> (vát vào ${contour.taper}cm). Công cụ tự động xếp kiện phía trên vai mâm vào phần diện tích hẹp hơn này. ${meta.verified==='unk'? '<br>Lưu ý: kích thước mâm '+meta.label+' tham khảo nguồn ULD công khai, nên xác nhận lại với CV trước khi dùng thật.':''}`;
+  } else {
+    note.style.display = 'none';
+  }
 }
+renderPalette();
 updateDimLine();
 
 /* ---- packing algorithm (shelf-based layered approximation) ---- */
@@ -767,7 +829,7 @@ function shelfPackLayer(items, L, W){
   }
   return {placed, leftover};
 }
-function packPallet(units, L, W, H){
+function packPallet(units, L, W, H, contour){
   let remaining = units.slice();
   const layers=[]; let usedHeight=0;
   while(remaining.length && usedHeight < H-0.001){
@@ -775,10 +837,11 @@ function packPallet(units, L, W, H){
     let candidates = remaining.filter(u=>u.h<=budget+0.001);
     if(!candidates.length) break;
     candidates = candidates.slice().sort((a,b)=>(b.l*b.w)-(a.l*a.w));
-    const {placed} = shelfPackLayer(candidates, L, W);
+    const Weff = (contour && usedHeight >= contour.shoulder-0.001) ? (W-contour.taper) : W;
+    const {placed} = shelfPackLayer(candidates, L, Weff);
     if(!placed.length) break;
     const layerHeight = Math.max(...placed.map(p=>p.h));
-    layers.push({z:usedHeight, height:layerHeight, items:placed});
+    layers.push({z:usedHeight, height:layerHeight, items:placed, wEff:Weff});
     usedHeight += layerHeight;
     const placedIds = new Set(placed.map(p=>p.uid));
     remaining = remaining.filter(u=>!placedIds.has(u.uid));
@@ -786,15 +849,16 @@ function packPallet(units, L, W, H){
   }
   return {layers, usedHeight, remaining};
 }
-function packAll(units, L, W, H){
+function packAll(units, L, W, H, contour){
   let remaining = units.map((u,i)=>({...u, uid:i}));
   const pallets=[];
+  const uldVol = contour ? (L*W*contour.shoulder + L*(W-contour.taper)*(H-contour.shoulder)) : (L*W*H);
   while(remaining.length){
     const before = remaining.length;
-    const {layers, usedHeight, remaining:rem2} = packPallet(remaining, L, W, H);
+    const {layers, usedHeight, remaining:rem2} = packPallet(remaining, L, W, H, contour);
     if(!layers.length) break;
     const vol = layers.reduce((s,ly)=>s+ly.items.reduce((s2,it)=>s2+it.l*it.w*it.h,0),0);
-    pallets.push({layers, usedHeight, fill: vol/(L*W*H)});
+    pallets.push({layers, usedHeight, fill: vol/uldVol});
     remaining = rem2;
     if(remaining.length===before) break;
   }
@@ -807,8 +871,22 @@ function destroyCharts(){ uldCharts.forEach(c=>c.destroy()); uldCharts=[]; }
 let active3D = null;
 function dispose3D(){ if(active3D){ active3D.dispose(); active3D=null; } }
 
+/* ---- contour (vát 1 bên) pallet wireframe: pentagon prism built as raw line segments ---- */
+function buildContourWireframe(L,W,H,shoulder,taper){
+  const pts2d = [ [0,0], [W,0], [W,shoulder], [W-taper,H], [0,H] ]; // (z=width, y=height)
+  const n = pts2d.length;
+  const pos = [];
+  const addLine = (ax,ay,az,bx,by,bz)=> pos.push(ax,ay,az, bx,by,bz);
+  for(let i=0;i<n;i++){ const [z1,y1]=pts2d[i], [z2,y2]=pts2d[(i+1)%n]; addLine(0,y1,z1, 0,y2,z2); } // front cap
+  for(let i=0;i<n;i++){ const [z1,y1]=pts2d[i], [z2,y2]=pts2d[(i+1)%n]; addLine(L,y1,z1, L,y2,z2); } // back cap
+  for(let i=0;i<n;i++){ const [z,y]=pts2d[i]; addLine(0,y,z, L,y,z); } // connecting edges
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos,3));
+  return geo;
+}
+
 /* ---- 3D pallet viewer (Three.js) — drag to rotate, scroll to zoom ---- */
-function mount3DViewer(containerEl, p, L, W, H){
+function mount3DViewer(containerEl, p, L, W, H, contour){
   containerEl.innerHTML = '';
   const width = containerEl.clientWidth || 320, height = 300;
   const scene = new THREE.Scene();
@@ -827,10 +905,15 @@ function mount3DViewer(containerEl, p, L, W, H){
   controls.minDistance = Math.max(L,W,H)*0.6; controls.maxDistance = Math.max(L,W,H)*6;
   controls.update();
 
-  // pallet bounding wireframe
-  const palletEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(L,H,W));
-  const wire = new THREE.LineSegments(palletEdges, new THREE.LineBasicMaterial({color:0x16305A}));
-  wire.position.set(cx,cy,cz);
+  // pallet bounding wireframe (plain box, or contoured pentagon prism for a shouldered/tapered ULD like Q7)
+  let wire;
+  if(contour){
+    wire = new THREE.LineSegments(buildContourWireframe(L,W,H,contour.shoulder,contour.taper), new THREE.LineBasicMaterial({color:0x16305A}));
+  } else {
+    const palletEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(L,H,W));
+    wire = new THREE.LineSegments(palletEdges, new THREE.LineBasicMaterial({color:0x16305A}));
+    wire.position.set(cx,cy,cz);
+  }
   scene.add(wire);
 
   // floor plate
@@ -894,7 +977,7 @@ function mount3DViewer(containerEl, p, L, W, H){
 }
 
 document.getElementById('computeBtn').addEventListener('click', ()=>{
-  const [L,W,H] = effectiveDims();
+  const {L,W,H,contour,meta} = effectiveDims();
   let units = [];
   let rowIdx=0;
   for(const row of uldState.rows){
@@ -912,7 +995,7 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
   }
   const t0 = performance.now();
   const oversize = units.filter(u => (Math.min(u.l,u.w)>Math.max(L,W)) || u.h>H);
-  const {pallets, unpacked} = packAll(units.filter(u=>!oversize.includes(u)), L, W, H);
+  const {pallets, unpacked} = packAll(units.filter(u=>!oversize.includes(u)), L, W, H, contour);
   const computeMs = (performance.now()-t0).toFixed(1);
   const totalUnpacked = unpacked.length + oversize.length;
   const totalPacked = units.length - totalUnpacked;
@@ -941,7 +1024,7 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
   html += legendHtml;
   html += '<div class="pallet-tabs" id="palletTabs">' + pallets.map((p,i)=>`<button class="ptab ${i===0?'sel':''}" data-i="${i}">Mâm ${i+1} · ${Math.round(p.fill*100)}%</button>`).join('') + '</div>';
   html += '<div id="palletDetail"></div>';
-  html += `<div class="algo-line">Thuật toán: shelf-pack theo lớp · ${computeMs} ms · mâm ${L}×${W}×${H} cm</div>`;
+  html += `<div class="algo-line">Thuật toán: shelf-pack theo lớp${contour?' (có vát)':''} · ${computeMs} ms · mâm ${meta.label} ${L}×${W}×${H} cm</div>`;
   area.innerHTML = html;
 
   function renderPallet(i){
@@ -966,7 +1049,7 @@ document.getElementById('computeBtn').addEventListener('click', ()=>{
     <div class="detail-toggle" id="detailToggle_${i}"><span class="arrow">▸</span> Chi tiết kiện theo mâm (${totalKien} kiện)</div>
     <div class="detail-list" id="detailList_${i}" style="display:none;"></div>`;
 
-    active3D = mount3DViewer(document.getElementById('p3d_'+i), p, L, W, H);
+    active3D = mount3DViewer(document.getElementById('p3d_'+i), p, L, W, H, contour);
     document.getElementById('replay3d_'+i).addEventListener('click', ()=>{ if(active3D) active3D.playDrop(); });
 
     const ctx = document.getElementById('donut_'+i).getContext('2d');
