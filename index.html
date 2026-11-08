@@ -1087,17 +1087,25 @@ function runUldCompute(){
   </div>`;
 
   dispose3D();
+
+  const altKeys = Object.keys(LINES[uldState.line].pallets).filter(k=>k!==uldState.pallet);
+  const suggestHtml = (totalUnpacked>0 && altKeys.length) ? `<div class="suggest-box"><div>⚠ Còn <b>${totalUnpacked}</b> kiện chưa xếp được với mâm ${meta.label}${contour?' (có thể do vượt giới hạn vát)':''}. Thử loại mâm khác cùng dòng khai thác?</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">${altKeys.map(k=>`<button class="btn btn-ghost btn-sm" data-try-pallet="${k}">Thử mâm ${LINES[uldState.line].pallets[k].label}</button>`).join('')}</div></div>` : '';
+
   if(!pallets.length){
-    html += '<div class="empty">Không có kiện nào xếp được vừa trong mâm đã chọn.</div>';
+    html += suggestHtml + '<div class="empty">Không có kiện nào xếp được vừa trong mâm đã chọn.</div>';
     area.innerHTML = html;
+    area.querySelectorAll('[data-try-pallet]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        uldState.pallet = btn.dataset.tryPallet; uldState.maxWeightOverride = null;
+        renderPalette(); updateDimLine(); syncMaxWeightUI();
+        runUldCompute();
+      });
+    });
     return;
   }
 
-  const altKeys = Object.keys(LINES[uldState.line].pallets).filter(k=>k!==uldState.pallet);
-  if(totalUnpacked>0 && altKeys.length){
-    html += `<div class="suggest-box"><div>⚠ Còn <b>${totalUnpacked}</b> kiện chưa xếp được với mâm ${meta.label}${contour?' (có thể do vượt giới hạn vát)':''}. Thử loại mâm khác cùng dòng khai thác?</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">${altKeys.map(k=>`<button class="btn btn-ghost btn-sm" data-try-pallet="${k}">Thử mâm ${LINES[uldState.line].pallets[k].label}</button>`).join('')}</div></div>`;
-  }
+  html += suggestHtml;
   if(overweightCount>0){
     html += `<div class="suggest-box" style="background:var(--red-bg);color:var(--red-tx);"><div>⚠ <b>${overweightCount}</b> mâm vượt tải trọng tối đa tham khảo (${maxW.toLocaleString('en-US')} kg) — kiểm tra lại cột CÂN(KG) đã nhập và xác nhận với hãng bay trước khi xếp thật.</div></div>`;
   }
